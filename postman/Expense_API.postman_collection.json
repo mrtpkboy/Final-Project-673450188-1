@@ -1,0 +1,555 @@
+{
+  "info": {
+    "name": "Expense Tracker API",
+    "description": "ชุดทดสอบ REST API ของระบบบันทึกรายจ่าย (แทน scripts/api-test.sh)\n\nวิธีใช้: เปิดแอป `npm run dev` -> Import ไฟล์นี้ -> กด Run collection\nแก้ baseUrl / email / password ได้ที่แท็บ Variables ของ collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Login (Auth.js)",
+      "description": "ต้องรันตามลำดับ 1 -> 2 -> 3 ก่อนเรียก API รายจ่าย (Postman เก็บ session cookie ให้อัตโนมัติ)",
+      "item": [
+        {
+          "name": "0.1 ยังไม่ login -> 401",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ล้าง cookie เดิมของ localhost เพื่อจำลองว่า \"ยังไม่ login\"",
+                  "pm.cookies.jar().clear(pm.request.url, function (err) { if (err) console.error(err); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ยังไม่ login -> ต้องได้ 401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test(\"มีข้อความ error\", function () {",
+                  "  pm.expect(pm.response.json().error).to.include(\"401\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ]
+            },
+            "description": "ทดสอบว่า API ปฏิเสธคนที่ยังไม่ login (ต้องได้ 401). Pre-request script จะล้าง cookie ก่อนส่ง"
+          }
+        },
+        {
+          "name": "0.2 ขอ CSRF token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const csrf = pm.response.json().csrfToken;",
+                  "pm.test(\"ได้ csrfToken\", function () { pm.expect(csrf).to.be.a(\"string\").and.not.empty; });",
+                  "pm.collectionVariables.set(\"csrfToken\", csrf);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/csrf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "csrf"
+              ]
+            },
+            "description": "Auth.js บังคับให้ขอ CSRF token ก่อน login. Test script จะเก็บค่าลงตัวแปร {{csrfToken}} ให้อัตโนมัติ"
+          }
+        },
+        {
+          "name": "0.3 Login (Email + Password)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"login สำเร็จ (200)\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"ได้ session cookie\", function () {",
+                  "  const names = pm.cookies.toObject ? Object.keys(pm.cookies.toObject()) : [];",
+                  "  console.log(\"cookies:\", names.join(\", \"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/callback/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "callback",
+                "credentials"
+              ]
+            },
+            "description": "ส่ง email/password แบบ x-www-form-urlencoded (ไม่ใช่ JSON). สำเร็จแล้ว Postman จะเก็บ cookie authjs.session-token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}"
+                },
+                {
+                  "key": "email",
+                  "value": "{{email}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}"
+                },
+                {
+                  "key": "json",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "0.4 ตรวจ session (ใครกำลัง login อยู่)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "pm.test(\"session มีข้อมูลผู้ใช้\", function () {",
+                  "  pm.expect(s).to.have.property(\"user\");",
+                  "  pm.expect(s.user).to.have.property(\"email\");",
+                  "});",
+                  "console.log(\"login เป็น:\", s.user && s.user.email, \"| role:\", s.user && s.user.role);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "session"
+              ]
+            },
+            "description": "ดูว่า login เป็นใคร role อะไร. ถ้าได้ null แปลว่า login ไม่สำเร็จ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Expenses (CRUD)",
+      "description": "ต้อง login (โฟลเดอร์ 0) ก่อน. รันตามลำดับจากบนลงล่างได้เลย",
+      "item": [
+        {
+          "name": "1.1 POST สร้างรายการ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"สร้างสำเร็จ -> 201\", function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.test(\"ได้ id กลับมา\", function () { pm.expect(body.id).to.be.a(\"string\"); });",
+                  "pm.test(\"ข้อมูลตรงกับที่ส่ง\", function () {",
+                  "  pm.expect(body.title).to.eql(\"ทดสอบ Postman\");",
+                  "  pm.expect(body.amount).to.eql(120.5);",
+                  "});",
+                  "pm.collectionVariables.set(\"expenseId\", body.id);   // เก็บ id ไว้ใช้ในขั้นตอนถัดไป"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ]
+            },
+            "description": "สร้างรายจ่ายใหม่ แล้วเก็บ id ลง {{expenseId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"ทดสอบ Postman\",\n  \"amount\": 120.5,\n  \"category\": \"อาหาร\",\n  \"date\": \"2026-10-18\",\n  \"note\": \"จาก Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "1.2 POST ข้อมูลผิด -> 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ข้อมูลผิด -> 422\", function () { pm.response.to.have.status(422); });",
+                  "pm.test(\"มี error ราย field\", function () {",
+                  "  const f = pm.response.json().fields;",
+                  "  pm.expect(f).to.have.property(\"title\");",
+                  "  pm.expect(f).to.have.property(\"amount\");",
+                  "  pm.expect(f).to.have.property(\"category\");",
+                  "  pm.expect(f).to.have.property(\"date\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ]
+            },
+            "description": "ส่งข้อมูลผิดทุกช่อง เพื่อดู validation error ราย field",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"amount\": -1,\n  \"category\": \"x\",\n  \"date\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "1.3 GET รายการทั้งหมด",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", function () { pm.response.to.have.status(200); });",
+                  "const b = pm.response.json();",
+                  "pm.test(\"มี data, pagination, summary\", function () {",
+                  "  pm.expect(b.data).to.be.an(\"array\");",
+                  "  pm.expect(b).to.have.property(\"pagination\");",
+                  "  pm.expect(b.summary).to.have.property(\"totalAmount\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ]
+            },
+            "description": "ดึงรายการ (USER เห็นเฉพาะของตัวเอง, ADMIN เห็นทั้งหมด) พร้อม pagination และยอดรวม"
+          }
+        },
+        {
+          "name": "1.4 GET ค้นหา + กรอง",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", function () { pm.response.to.have.status(200); });",
+                  "const b = pm.response.json();",
+                  "pm.test(\"ทุกรายการอยู่ในหมวด 'อาหาร'\", function () {",
+                  "  b.data.forEach(function (e) { pm.expect(e.category).to.eql(\"อาหาร\"); });",
+                  "});",
+                  "pm.test(\"pageSize = 5\", function () { pm.expect(b.pagination.pageSize).to.eql(5); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses?q=ทดสอบ&category=อาหาร&pageSize=5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "ทดสอบ"
+                },
+                {
+                  "key": "category",
+                  "value": "อาหาร"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "5"
+                },
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "ใช้ Query Params: q=ค้นหา, category=หมวด, from/to=ช่วงวันที่ (ติ๊ก/เลิกติ๊กในแท็บ Params ได้), page, pageSize"
+          }
+        },
+        {
+          "name": "1.5 GET รายการเดียว (by id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"id ตรงกับที่ขอ\", function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"expenseId\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses/{{expenseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses",
+                "{{expenseId}}"
+              ]
+            },
+            "description": "ดูรายการเดียวด้วย id ที่ได้จากข้อ 1.1"
+          }
+        },
+        {
+          "name": "1.6 PUT แก้ไข",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"แก้ไขสำเร็จ -> 200\", function () { pm.response.to.have.status(200); });",
+                  "const b = pm.response.json();",
+                  "pm.test(\"ค่าถูกอัปเดต\", function () {",
+                  "  pm.expect(b.title).to.eql(\"ทดสอบ Postman (แก้แล้ว)\");",
+                  "  pm.expect(b.amount).to.eql(200);",
+                  "  pm.expect(b.category).to.eql(\"เดินทาง\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses/{{expenseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses",
+                "{{expenseId}}"
+              ]
+            },
+            "description": "แก้ไขรายการ (ต้องส่งครบทุก field ที่บังคับ)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"ทดสอบ Postman (แก้แล้ว)\",\n  \"amount\": 200,\n  \"category\": \"เดินทาง\",\n  \"date\": \"2026-10-18\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "1.7 DELETE ลบ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ลบสำเร็จ -> 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"มีข้อความยืนยัน\", function () { pm.expect(pm.response.json().message).to.include(\"ลบ\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses/{{expenseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses",
+                "{{expenseId}}"
+              ]
+            },
+            "description": "ลบรายการ"
+          }
+        },
+        {
+          "name": "1.8 GET หลังลบ -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ลบไปแล้ว -> 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/expenses/{{expenseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "expenses",
+                "{{expenseId}}"
+              ]
+            },
+            "description": "ขอรายการที่ถูกลบไปแล้ว ต้องได้ 404"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "admin1234",
+      "type": "string"
+    },
+    {
+      "key": "csrfToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expenseId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #17212b;
+  --color-ink-soft: #5b6877;
+  --color-ground: #e9eef3;
+  --color-line: #d5dde6;
+  --color-baht: #1f8a5b;
+  --color-baht-dark: #166946;
+  --color-baht-tint: #e3f3ea;
+  --color-mark: #ffd84d;
+  --color-danger: #c0362c;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 3px solid var(--color-baht); outline-offset: 2px; border-radius: 6px; }
+
+/* ใบเสร็จขอบหยัก */
+.receipt { position: relative; background: #fff; }
+.receipt::after {
+  content: "";
+  position: absolute; left: 0; right: 0; top: 100%; height: 12px;
+  background:
+    linear-gradient(135deg, #fff 6px, transparent 0) 0 0 / 12px 12px,
+    linear-gradient(225deg, #fff 6px, transparent 0) 0 0 / 12px 12px;
+}
+
+/* เส้นจุดไข่ปลาโยงชื่อรายการไปหาจำนวนเงิน */
+.leader { flex: 1; border-bottom: 2px dotted var(--color-line); margin: 0 .6rem .35rem; min-width: 1rem; }
+
+.field {
+  width: 100%; border-radius: .6rem; border: 1.5px solid var(--color-line);
+  background: #fff; padding: .6rem .8rem; font: inherit;
+}
+.field:focus { border-color: var(--color-baht); outline: none; box-shadow: 0 0 0 3px var(--color-baht-tint); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .modal-in { animation: pop .18s ease-out; }
+  @keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+}
