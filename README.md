@@ -64,17 +64,6 @@ npm run dev                   # เปิด http://localhost:3000
 
 Login: `admin@example.com` / `admin1234` หรือสมัครใหม่ที่ `/signup` (ได้ role USER)
 
-### สคริปต์พรีเซนต์ (แนะนำ)
-
-1. หน้าแรก → Sign Up สมัครบัญชีใหม่ → Login (ระบบพาไป `/expenses`)
-2. เพิ่มรายจ่าย กรอกผิดเพื่อโชว์ validation (ชื่อว่าง, จำนวนเงินติดลบ)
-3. แก้ไข / ลบรายการ
-4. ค้นหา "กาแฟ", กรองหมวด "เดินทาง", กรองช่วงวันที่
-5. Login เป็น ADMIN เพื่อโชว์ว่าเห็นข้อมูลทุกคน (มีคอลัมน์ผู้บันทึก)
-6. เปิด Postman รัน Collection `Expense Tracker API` เพื่อโชว์ API ทั้ง 4 method + 401/422/404 (สคริปต์พูดอยู่ที่ [`postman/SCRIPT.md`](postman/SCRIPT.md); แผนสำรองคือพิมพ์ URL `/api-test`)
-
-> หมายเหตุ: ผู้ใช้ที่ login ด้วย GitHub จะถูกบันทึกลงตาราง User อัตโนมัติ (role USER)
-
 ---
 
 # (เอกสารเดิม) Next.js Authentication + Role-Based Access (RBAC)
